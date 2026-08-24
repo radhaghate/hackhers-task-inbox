@@ -8,7 +8,14 @@ export async function GET(_request: Request, { params }: { params: Promise<{ tas
   const { taskId } = await params;
   const task = await prisma.task.findUnique({
     where: { id: taskId },
-    include: { emailThread: { include: { gmailAccount: true } }, assignedOwner: true, suggestedReply: true, reminders: true },
+    include: {
+      // Never include encrypted*Token/scopes here — this route returns
+      // JSON directly to a client fetch call.
+      emailThread: { include: { gmailAccount: { select: { id: true, emailAddress: true, displayName: true } } } },
+      assignedOwner: true,
+      suggestedReply: true,
+      reminders: true,
+    },
   });
   if (!task) return NextResponse.json({ error: "Task not found" }, { status: 404 });
   return NextResponse.json({ task });

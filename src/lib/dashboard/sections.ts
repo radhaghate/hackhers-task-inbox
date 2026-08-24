@@ -4,7 +4,9 @@ import { getEnv } from "@/lib/config/env";
 
 const taskWithRelations = Prisma.validator<Prisma.TaskDefaultArgs>()({
   include: {
-    emailThread: { include: { gmailAccount: true } },
+    // Never select encrypted*Token/scopes here — this feeds a Client
+    // Component prop, and anything included gets serialized to the browser.
+    emailThread: { include: { gmailAccount: { select: { id: true, emailAddress: true, displayName: true } } } },
     sourceEmailMessage: true,
     assignedOwner: true,
     suggestedReply: true,
