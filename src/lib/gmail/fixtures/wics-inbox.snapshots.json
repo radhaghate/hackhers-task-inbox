@@ -1,0 +1,53 @@
+{
+  "emailAddress": "rutgerswics@gmail.com",
+  "snapshots": [
+    {
+      "historyId": "200000",
+      "messages": [
+        {
+          "gmailMessageId": "wics-msg-001",
+          "gmailThreadId": "wics-thread-speaker-outreach",
+          "threadSubject": "Guest speaker for spring kickoff?",
+          "fromAddress": "amina.k@example.com",
+          "toAddresses": ["rutgerswics@gmail.com"],
+          "sentAt": "2026-08-17T18:20:00.000Z",
+          "snippet": "I'd love to speak at your kickoff sometime this semester.",
+          "bodyText": "Hi WiCS team,\n\nI'd love to come speak at your kickoff event sometime this semester — happy to work around your schedule, just would love to confirm before the semester picks up.\n\nBest,\nAmina",
+          "historyId": "200000",
+          "isFromOrgAccount": false
+        },
+        {
+          "gmailMessageId": "wics-msg-002",
+          "gmailThreadId": "wics-thread-receipt-canva",
+          "threadSubject": "Your Canva for Nonprofits receipt",
+          "fromAddress": "billing@canva.example",
+          "toAddresses": ["rutgerswics@gmail.com"],
+          "sentAt": "2026-08-18T05:00:00.000Z",
+          "snippet": "Thanks for your subscription. Here is your receipt.",
+          "bodyText": "Thanks for your subscription renewal. This is an automated receipt — no action needed. Amount: $0.00 (nonprofit plan).",
+          "historyId": "200000",
+          "isFromOrgAccount": false
+        }
+      ],
+      "labelOnlyThreadIds": []
+    },
+    {
+      "historyId": "200010",
+      "messages": [
+        {
+          "gmailMessageId": "wics-msg-003",
+          "gmailThreadId": "wics-thread-w9-sponsor",
+          "threadSubject": "W9 for sponsorship payment",
+          "fromAddress": "finance@partnerfirm.example",
+          "toAddresses": ["rutgerswics@gmail.com"],
+          "sentAt": "2026-08-21T12:00:00.000Z",
+          "snippet": "One more small thing on this thread — can you also confirm your mailing address?",
+          "bodyText": "Thanks for sending the W9 last week! One more small thing on this thread — can you also confirm your mailing address for the check?",
+          "historyId": "200010",
+          "isFromOrgAccount": false
+        }
+      ],
+      "labelOnlyThreadIds": []
+    }
+  ]
+}

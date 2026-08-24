@@ -1,0 +1,70 @@
+{
+  "emailAddress": "rutgers.hackhers@gmail.com",
+  "snapshots": [
+    {
+      "historyId": "100000",
+      "messages": [
+        {
+          "gmailMessageId": "hh-msg-001",
+          "gmailThreadId": "hh-thread-sponsor-acme",
+          "threadSubject": "HackHERS 2026 workshop schedule",
+          "fromAddress": "sponsors@acmecorp.example",
+          "toAddresses": ["rutgers.hackhers@gmail.com"],
+          "sentAt": "2026-08-18T15:04:00.000Z",
+          "snippet": "Can you confirm the 2 PM slot for our workshop?",
+          "bodyText": "Hi team,\n\nCan you confirm the 2 PM slot for our workshop on the 22nd? We need to finalize our travel by Friday.\n\nBest,\nJane\n\n--\nJane Rivera\nUniversity Partnerships, Acme Corp",
+          "historyId": "100000",
+          "isFromOrgAccount": false
+        },
+        {
+          "gmailMessageId": "hh-msg-002",
+          "gmailThreadId": "hh-thread-newsletter-acmw",
+          "threadSubject": "ACM-W Monthly Digest — August",
+          "fromAddress": "digest@acm-w.example",
+          "toAddresses": ["rutgers.hackhers@gmail.com"],
+          "sentAt": "2026-08-19T09:00:00.000Z",
+          "snippet": "This month in ACM-W: chapter spotlights, upcoming webinars...",
+          "bodyText": "<html><body><p>This month in ACM-W: chapter spotlights, upcoming webinars, and scholarship deadlines.</p><p>Read more on our blog.</p></body></html>",
+          "historyId": "100000",
+          "isFromOrgAccount": false
+        }
+      ],
+      "labelOnlyThreadIds": []
+    },
+    {
+      "historyId": "100010",
+      "messages": [
+        {
+          "gmailMessageId": "hh-msg-003",
+          "gmailThreadId": "hh-thread-sponsor-acme",
+          "threadSubject": "HackHERS 2026 workshop schedule",
+          "fromAddress": "sponsors@acmecorp.example",
+          "toAddresses": ["rutgers.hackhers@gmail.com"],
+          "sentAt": "2026-08-21T13:30:00.000Z",
+          "snippet": "Following up — were you able to confirm the slot?",
+          "bodyText": "Hi again,\n\nFollowing up — were you able to confirm the 2 PM slot? Let us know by tomorrow so we can book flights.\n\nOn Mon, Aug 18, 2026, Jane Rivera wrote:\n> Can you confirm the 2 PM slot for our workshop on the 22nd?",
+          "historyId": "100010",
+          "isFromOrgAccount": false
+        },
+        {
+          "gmailMessageId": "hh-msg-004",
+          "gmailThreadId": "hh-thread-venue-followup",
+          "threadSubject": "Venue AV setup form",
+          "fromAddress": "events@rutgersvenues.example",
+          "toAddresses": ["rutgers.hackhers@gmail.com"],
+          "sentAt": "2026-08-21T16:00:00.000Z",
+          "snippet": "Please submit the AV request form before setup.",
+          "bodyText": "Hello,\n\nPlease submit the attached AV request form at least 5 business days before your event so we can confirm equipment availability.\n\nThanks,\nRutgers Venue Services",
+          "historyId": "100010",
+          "isFromOrgAccount": false
+        }
+      ],
+      "labelOnlyThreadIds": []
+    },
+    {
+      "historyId": "100020",
+      "messages": [],
+      "labelOnlyThreadIds": ["hh-thread-newsletter-acmw"]
+    }
+  ]
+}

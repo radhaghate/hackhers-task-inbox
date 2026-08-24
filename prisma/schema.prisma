@@ -1,0 +1,315 @@
+// HackHERS Task Inbox — Prisma schema
+// See /Users/radhaghate/.claude/plans/curious-cuddling-bachman.md for design rationale.
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+}
+
+// ---------------------------------------------------------------------------
+// Enums
+// ---------------------------------------------------------------------------
+
+enum Priority {
+  LOW
+  MEDIUM
+  HIGH
+  URGENT
+}
+
+enum TaskStatus {
+  OPEN
+  WAITING_FOR_REPLY
+  COMPLETED
+  DISMISSED
+}
+
+enum DueDateSource {
+  EXPLICIT
+  INFERRED
+}
+
+enum ReminderStatus {
+  PENDING
+  NOTIFIED
+  DISMISSED
+}
+
+enum ReminderChannel {
+  IN_APP
+  EMAIL
+  CALENDAR
+}
+
+enum ScanTriggerSource {
+  CRON
+  MANUAL_UI
+  CLI
+}
+
+enum ScanMode {
+  LIVE
+  DRY_RUN
+}
+
+enum ScanRunStatus {
+  RUNNING
+  SUCCEEDED
+  FAILED
+  PARTIAL
+}
+
+enum AuditEventType {
+  SCAN_STARTED
+  SCAN_COMPLETED
+  SCAN_FAILED
+  TASK_CLASSIFIED
+  TASK_FIELD_EDITED
+  TASK_STATUS_CHANGED
+  TASK_DISMISSED
+  TASK_RESTORED
+  TASK_COMPLETED
+  REPLY_EDITED
+  DRAFT_CREATED
+  DRAFT_CREATION_FAILED
+  REMINDER_SCHEDULED
+  REMINDER_DISMISSED
+  OAUTH_CONNECTED
+  OAUTH_TOKEN_REFRESHED
+  LOGIN_SUCCEEDED
+}
+
+// ---------------------------------------------------------------------------
+// Models
+// ---------------------------------------------------------------------------
+
+/// A club member who can sign in, own tasks, and act as an audit actor.
+/// Doubles as the login allowlist: only active members with a matching
+/// Google account email may sign in (see src/auth.ts).
+model TeamMember {
+  id        String   @id @default(cuid())
+  name      String
+  email     String   @unique
+  role      String?
+  isActive  Boolean  @default(true)
+  createdAt DateTime @default(now())
+
+  connectedGmailAccounts GmailAccount[]   @relation("GmailAccountConnectedBy")
+  assignedTasks          Task[]           @relation("TaskAssignedOwner")
+  editedReplies          SuggestedReply[] @relation("SuggestedReplyEditedBy")
+  approvedDrafts         SuggestedReply[] @relation("SuggestedReplyApprovedBy")
+  createdReminders       Reminder[]       @relation("ReminderCreatedBy")
+  auditEvents            AuditEvent[]     @relation("AuditEventActor")
+
+  @@map("team_members")
+}
+
+/// One connected Gmail inbox (rutgers.hackhers@ or rutgerswics@).
+/// Holds the encrypted OAuth tokens and the incremental-sync cursor.
+model GmailAccount {
+  id                      String      @id @default(cuid())
+  emailAddress            String      @unique
+  displayName             String
+  encryptedAccessToken    String?
+  encryptedRefreshToken   String?
+  tokenExpiresAt          DateTime?
+  scopes                  String?
+  lastHistoryId           String?
+  lastSuccessfulScanAt    DateTime?
+  isActive                Boolean     @default(true)
+  connectedByTeamMemberId String?
+  connectedByTeamMember   TeamMember? @relation("GmailAccountConnectedBy", fields: [connectedByTeamMemberId], references: [id])
+  createdAt               DateTime    @default(now())
+  updatedAt               DateTime    @updatedAt
+
+  threads EmailThread[]
+
+  @@map("gmail_accounts")
+}
+
+/// A Gmail thread, scoped to one GmailAccount. Stores a compact rolling
+/// summary so future scans don't need to re-send full thread history to
+/// the model.
+model EmailThread {
+  id                         String       @id @default(cuid())
+  gmailAccountId             String
+  gmailAccount               GmailAccount @relation(fields: [gmailAccountId], references: [id], onDelete: Cascade)
+  gmailThreadId              String
+  subject                    String
+  lastMessageAt              DateTime
+  storedSummary              String?
+  messageCount               Int          @default(0)
+  lastClassifiedAt           DateTime?
+  lastClassifiedMessageCount Int          @default(0)
+  createdAt                  DateTime     @default(now())
+  updatedAt                  DateTime     @updatedAt
+
+  messages EmailMessage[]
+  tasks    Task[]
+
+  @@unique([gmailAccountId, gmailThreadId])
+  @@index([gmailAccountId, lastMessageAt])
+  @@map("email_threads")
+}
+
+/// A single message within a thread. `sanitizedBodyText` is the
+/// signature/quote/tracking-link-stripped, length-capped body that is
+/// what actually gets sent to the model — never the raw body.
+model EmailMessage {
+  id                String      @id @default(cuid())
+  emailThreadId     String
+  emailThread       EmailThread @relation(fields: [emailThreadId], references: [id], onDelete: Cascade)
+  gmailAccountId    String
+  gmailMessageId    String
+  fromAddress       String
+  toAddresses       String[]
+  sentAt            DateTime
+  snippet           String?
+  sanitizedBodyText String
+  rawSizeBytes      Int
+  isFromOrgAccount  Boolean     @default(false)
+  historyId         String?
+  createdAt         DateTime    @default(now())
+
+  tasksSourced Task[] @relation("TaskSourceMessage")
+
+  @@unique([gmailAccountId, gmailMessageId])
+  @@index([emailThreadId, sentAt])
+  @@map("email_messages")
+}
+
+/// One extracted, human-editable action item. A single thread may
+/// produce many tasks. Tasks are never recreated once COMPLETED or
+/// DISMISSED — a re-classified thread can only create new Task rows for
+/// genuinely new action items.
+model Task {
+  id                   String       @id @default(cuid())
+  emailThreadId        String
+  emailThread          EmailThread  @relation(fields: [emailThreadId], references: [id], onDelete: Cascade)
+  sourceEmailMessageId String
+  sourceEmailMessage   EmailMessage @relation("TaskSourceMessage", fields: [sourceEmailMessageId], references: [id])
+
+  title              String
+  description        String
+  emailSummary       String
+  priority           Priority
+  dueDate            DateTime?
+  dueDateSource      DueDateSource?
+  dueDateExplanation String?
+  confidence         Float
+  assignedOwnerId    String?
+  assignedOwner      TeamMember?    @relation("TaskAssignedOwner", fields: [assignedOwnerId], references: [id])
+  suggestedOwnerRole String?
+  status             TaskStatus     @default(OPEN)
+  privateNotes       String?
+  originalExcerpt    String
+
+  completedAt DateTime?
+  dismissedAt DateTime?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  suggestedReply SuggestedReply?
+  reminders      Reminder[]
+
+  @@index([status, priority, dueDate])
+  @@index([emailThreadId, title])
+  @@map("tasks")
+}
+
+/// AI-drafted reply for a task, editable by a human. `gmailDraftId` is
+/// only ever set by the explicit, human-approved draft-creation route —
+/// the scan pipeline never touches it.
+model SuggestedReply {
+  id     String @id @default(cuid())
+  taskId String @unique
+  task   Task   @relation(fields: [taskId], references: [id], onDelete: Cascade)
+
+  subject                    String
+  body                       String
+  aiGeneratedOriginalSubject String
+  aiGeneratedOriginalBody    String
+  isEdited                   Boolean     @default(false)
+  editedByTeamMemberId       String?
+  editedByTeamMember         TeamMember? @relation("SuggestedReplyEditedBy", fields: [editedByTeamMemberId], references: [id])
+
+  gmailDraftId                String?
+  draftCreatedAt              DateTime?
+  draftApprovedByTeamMemberId String?
+  draftApprovedByTeamMember   TeamMember? @relation("SuggestedReplyApprovedBy", fields: [draftApprovedByTeamMemberId], references: [id])
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@map("suggested_replies")
+}
+
+/// An in-app reminder to review/send a reply. Never sends anything by
+/// itself. `channel` is pre-wired for future EMAIL/CALENDAR delivery.
+model Reminder {
+  id                    String          @id @default(cuid())
+  taskId                String
+  task                  Task            @relation(fields: [taskId], references: [id], onDelete: Cascade)
+  remindAt              DateTime
+  note                  String?
+  status                ReminderStatus  @default(PENDING)
+  channel               ReminderChannel @default(IN_APP)
+  createdByTeamMemberId String?
+  createdByTeamMember   TeamMember?     @relation("ReminderCreatedBy", fields: [createdByTeamMemberId], references: [id])
+  notifiedAt            DateTime?
+  createdAt             DateTime        @default(now())
+  updatedAt             DateTime        @updatedAt
+
+  @@index([status, remindAt])
+  @@map("reminders")
+}
+
+/// One record per scan execution (cron, manual UI trigger, or CLI),
+/// carrying token/cost usage so spend is auditable per run.
+model ScanRun {
+  id                   String            @id @default(cuid())
+  trigger              ScanTriggerSource
+  mode                 ScanMode
+  status               ScanRunStatus     @default(RUNNING)
+  startedAt            DateTime          @default(now())
+  finishedAt           DateTime?
+  gmailAccountsScanned String[]
+  threadsSeen          Int               @default(0)
+  messagesSeen         Int               @default(0)
+  newMessages          Int               @default(0)
+  threadsClassified    Int               @default(0)
+  tasksCreated         Int               @default(0)
+  tasksUpdated         Int               @default(0)
+  modelCallsCount      Int               @default(0)
+  promptTokens         Int               @default(0)
+  completionTokens     Int               @default(0)
+  estimatedCostUsd     Float?
+  errorMessage         String?
+  createdAt            DateTime          @default(now())
+
+  @@index([startedAt])
+  @@map("scan_runs")
+}
+
+/// Immutable audit trail for scans, classifications, edits, dismissals,
+/// and draft creation. metadataJson must only ever contain structural
+/// facts (ids, old/new enum values, counts) — never email bodies,
+/// tokens, or other secrets.
+model AuditEvent {
+  id                String         @id @default(cuid())
+  eventType         AuditEventType
+  entityType        String
+  entityId          String
+  actorTeamMemberId String?
+  actorTeamMember   TeamMember?    @relation("AuditEventActor", fields: [actorTeamMemberId], references: [id])
+  metadataJson      Json?
+  createdAt         DateTime       @default(now())
+
+  @@index([entityType, entityId])
+  @@index([createdAt])
+  @@map("audit_events")
+}
