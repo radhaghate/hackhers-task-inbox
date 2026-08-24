@@ -1,6 +1,17 @@
-import type { Priority, Task } from "@prisma/client";
+import { Prisma, type Priority, type Task } from "@prisma/client";
 import { prisma } from "@/lib/db/prisma";
 import { getEnv } from "@/lib/config/env";
+
+const taskWithRelations = Prisma.validator<Prisma.TaskDefaultArgs>()({
+  include: {
+    emailThread: { include: { gmailAccount: true } },
+    sourceEmailMessage: true,
+    assignedOwner: true,
+    suggestedReply: true,
+    reminders: { orderBy: { remindAt: "asc" } },
+  },
+});
+export type TaskWithRelations = Prisma.TaskGetPayload<typeof taskWithRelations>;
 
 export const DASHBOARD_SECTIONS = ["needsAttention", "upcoming", "waitingForReply", "completed", "ignored"] as const;
 export type DashboardSection = (typeof DASHBOARD_SECTIONS)[number];
@@ -28,18 +39,13 @@ export function computeSection(task: Pick<Task, "status" | "priority" | "dueDate
  * Fetches every task grouped by dashboard section in one pass, so the
  * dashboard page issues one query instead of five.
  */
-export async function getTasksGroupedBySection(now: Date = new Date()) {
+export async function getTasksGroupedBySection(now: Date = new Date()): Promise<Record<DashboardSection, TaskWithRelations[]>> {
   const tasks = await prisma.task.findMany({
     orderBy: [{ priority: "desc" }, { dueDate: "asc" }, { createdAt: "desc" }],
-    include: {
-      emailThread: { include: { gmailAccount: true } },
-      assignedOwner: true,
-      suggestedReply: true,
-      reminders: { orderBy: { remindAt: "asc" } },
-    },
+    ...taskWithRelations,
   });
 
-  const grouped: Record<DashboardSection, typeof tasks> = {
+  const grouped: Record<DashboardSection, TaskWithRelations[]> = {
     needsAttention: [],
     upcoming: [],
     waitingForReply: [],

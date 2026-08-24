@@ -93,7 +93,10 @@ export class MockGmailProvider implements GmailProvider {
     };
   }
 
+  // Signature must match GmailProvider.createDraft; the mock doesn't need
+  // any of the input to fabricate a plausible draft id.
   async createDraft(input: CreateDraftInput): Promise<{ draftId: string }> {
+    void input;
     return { draftId: `mock-draft-${randomUUID()}` };
   }
 
