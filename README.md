@@ -81,13 +81,43 @@ See `.env.example` for the full annotated list. Summary:
   `LLM_PROVIDER=mock`.
 - **Real Gmail:** set `GMAIL_PROVIDER=google` and configure `GOOGLE_CLIENT_ID` / `GOOGLE_CLIENT_SECRET` /
   `GOOGLE_OAUTH_REDIRECT_URI` (see below).
-- **Real LLM:** set `LLM_PROVIDER=anthropic` and `ANTHROPIC_API_KEY`.
+- **Real LLM:** set `LLM_PROVIDER=anthropic` and `ANTHROPIC_API_KEY` (billed separately from any Claude
+  subscription), or set `LLM_PROVIDER=manual` to classify by hand — e.g. via Claude Code — at no extra cost
+  (see "Manual classification mode" below).
 - **Scheduled scans:** `CRON_SECRET` (required in production), `SCAN_INTERVAL_DAYS` (default `2`, documentation
   value — see "Production scheduling" below for what actually enforces the cadence).
 - **Tuning:** `NEEDS_ATTENTION_WINDOW_DAYS`, `MAX_EMAIL_BODY_CHARS`, `MAX_CONCURRENT_CLASSIFY_CALLS`.
 
 **Never commit a real `.env` file or real secrets.** `.env*` is gitignored; only `.env.example` (placeholders
 only) is tracked.
+
+## Manual classification mode (use your Claude subscription instead of paying for API access)
+
+`LLM_PROVIDER=anthropic` calls the Anthropic API, which is billed separately from any claude.ai or
+Claude Code subscription (a subscription doesn't cover programmatic API calls from your own app). If
+you'd rather not pay for API usage, set `LLM_PROVIDER=manual` instead: Gmail sync still runs automatically,
+but classification becomes a batch step you do by hand — for example by pasting the batch file into a
+Claude Code session and asking it to classify the entries, at no extra cost beyond your existing subscription.
+
+1. `npm run scan` (with `LLM_PROVIDER=manual`). Sync runs as normal; instead of calling a model, the scan
+   writes every candidate thread to `data/classification-batches/<scanRunId>.json` (gitignored — it contains
+   real sanitized email content) and prints the file path.
+2. Open that file. It contains the same system prompt the `anthropic` provider uses, plus one entry per
+   candidate thread (`subject`, `storedSummary`, `newMessages`) with a `result: null` field.
+3. In a Claude Code session (or any Claude interface you have access to), ask it to classify the batch — fill
+   in each entry's `result` with a JSON object matching the shape described in the file's `systemPrompt`/
+   `instructions` fields. Leave `result: null` on any entry you want to skip; it'll be picked up again on a
+   later scan since the thread stays a candidate until it's classified.
+4. Apply the filled-in file: `npx tsx scripts/apply-classifications.ts data/classification-batches/<scanRunId>.json`
+   (or `npm run classify:apply -- <path>`). This runs the exact same `persistClassification` logic the live
+   pipeline uses — same dedup rules, same "never reopen a closed task" invariant — and prints how many tasks
+   were created/updated.
+
+The trade-off versus `anthropic` mode: classification isn't fully unattended anymore — a scan on a `/api/cron/scan`
+schedule will sync mail and write a batch file every 2 days, but nothing gets classified into tasks until you
+run step 3–4 yourself. `ManualLLMProvider.classify()` is never actually invoked (the orchestrator short-circuits
+before calling it) — it exists only so `getLLMProvider()` stays total and fails loudly if some other code path
+ever tries to call it directly.
 
 ## Google Cloud setup (only needed for real Gmail / real team login)
 

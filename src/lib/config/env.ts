@@ -24,7 +24,7 @@ const envSchema = z.object({
   AUTH_DEV_BYPASS: boolFromString,
 
   GMAIL_PROVIDER: z.enum(["mock", "google"]).default("mock"),
-  LLM_PROVIDER: z.enum(["mock", "anthropic"]).default("mock"),
+  LLM_PROVIDER: z.enum(["mock", "anthropic", "manual"]).default("mock"),
 
   GOOGLE_CLIENT_ID: z.string().optional(),
   GOOGLE_CLIENT_SECRET: z.string().optional(),
@@ -69,7 +69,22 @@ export function isMockLLM(): boolean {
   return getEnv().LLM_PROVIDER === "mock";
 }
 
+/** Manual mode: the scan exports candidate threads to a batch file instead of calling any model. */
+export function isManualLLM(): boolean {
+  return getEnv().LLM_PROVIDER === "manual";
+}
+
 export function isAuthDevBypassActive(): boolean {
   const env = getEnv();
   return env.AUTH_DEV_BYPASS === true && env.NODE_ENV !== "production";
+}
+
+/**
+ * Test-only escape hatch: getEnv() caches its parsed result for the life of
+ * the process, which is normally correct (env config doesn't change at
+ * runtime) but breaks tests that need to flip a provider switch (e.g.
+ * LLM_PROVIDER) between cases. Never call this outside tests.
+ */
+export function __resetEnvCacheForTests(): void {
+  cached = undefined;
 }

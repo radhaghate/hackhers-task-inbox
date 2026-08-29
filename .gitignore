@@ -44,3 +44,6 @@ next-env.d.ts
 /test-results/
 /playwright-report/
 /blob-report/
+
+# manual-classification batch files (real sanitized email content — never commit)
+/data/

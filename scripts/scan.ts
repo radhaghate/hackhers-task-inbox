@@ -6,7 +6,7 @@ async function main() {
   const isDryRun = process.argv.includes("--dry-run");
 
   console.log(`Starting ${isDryRun ? "DRY RUN" : "LIVE"} scan (trigger: CLI)...`);
-  const { scanRunId, status } = await runScan({ mode: isDryRun ? "DRY_RUN" : "LIVE", trigger: "CLI" });
+  const { scanRunId, status, manualBatchFilePath } = await runScan({ mode: isDryRun ? "DRY_RUN" : "LIVE", trigger: "CLI" });
 
   const scanRun = await prisma.scanRun.findUniqueOrThrow({ where: { id: scanRunId } });
   console.log(`\nScan ${status}`);
@@ -25,6 +25,12 @@ async function main() {
   }
   if (scanRun.errorMessage) {
     console.log(`  Error:              ${scanRun.errorMessage}`);
+  }
+  if (manualBatchFilePath) {
+    console.log(`\nLLM_PROVIDER=manual — no model was called. Classify this batch by hand (e.g. via a Claude Code`);
+    console.log(`session, using your existing Claude subscription instead of a paid API key), then apply it:`);
+    console.log(`  1. Open ${manualBatchFilePath} and fill in each thread's "result" field.`);
+    console.log(`  2. npx tsx scripts/apply-classifications.ts ${manualBatchFilePath}`);
   }
 }
 

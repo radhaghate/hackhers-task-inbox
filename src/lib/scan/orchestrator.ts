@@ -10,6 +10,7 @@ import { buildThreadContext } from "./buildThreadContext";
 import { persistClassification } from "./persistClassification";
 import { runWithConcurrency } from "./batching";
 import { addUsage, estimateCostUsd, newUsageAccumulator } from "./usageLogger";
+import { writeClassificationBatch } from "./manualBatch";
 import { parseClassificationResult } from "@/lib/schemas/classification";
 
 export type RunScanInput = {
@@ -20,6 +21,8 @@ export type RunScanInput = {
 export type RunScanResult = {
   scanRunId: string;
   status: ScanRunStatus;
+  /** Set only when LLM_PROVIDER=manual and there was at least one candidate thread to classify. */
+  manualBatchFilePath?: string;
 };
 
 /**
@@ -89,6 +92,34 @@ export async function runScan(input: RunScanInput): Promise<RunScanResult> {
         metadata: { dryRun: true, candidateThreadCount: candidateIds.length, fallbackUsed: fallbackUsedAny },
       });
       return { scanRunId: scanRun.id, status: "SUCCEEDED" };
+    }
+
+    if (getEnv().LLM_PROVIDER === "manual") {
+      const contexts = await Promise.all(
+        candidateIds.map(async (emailThreadId) => ({ emailThreadId, context: await buildThreadContext(emailThreadId) })),
+      );
+      const manualBatchFilePath = contexts.length > 0 ? await writeClassificationBatch(scanRun.id, contexts) : undefined;
+
+      await prisma.scanRun.update({
+        where: { id: scanRun.id },
+        data: {
+          status: "SUCCEEDED",
+          finishedAt: new Date(),
+          gmailAccountsScanned: accounts.map((a) => a.emailAddress),
+          threadsSeen: threadsSeenIds.size,
+          messagesSeen,
+          newMessages,
+          threadsClassified: 0,
+          modelCallsCount: 0,
+        },
+      });
+      await writeAuditEvent({
+        eventType: "SCAN_COMPLETED",
+        entityType: "ScanRun",
+        entityId: scanRun.id,
+        metadata: { manualBatch: true, candidateThreadCount: candidateIds.length, fallbackUsed: fallbackUsedAny },
+      });
+      return { scanRunId: scanRun.id, status: "SUCCEEDED", manualBatchFilePath };
     }
 
     const llmProvider = getLLMProvider();
