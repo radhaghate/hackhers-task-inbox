@@ -17,7 +17,8 @@
     "db:studio": "prisma studio",
     "scan": "tsx scripts/scan.ts",
     "scan:dry": "tsx scripts/scan.ts --dry-run",
-    "classify:apply": "tsx scripts/apply-classifications.ts"
+    "classify:apply": "tsx scripts/apply-classifications.ts",
+    "classify:export": "tsx scripts/export-classification-batch.ts"
   },
   "dependencies": {
     "@anthropic-ai/sdk": "^0.120.0",

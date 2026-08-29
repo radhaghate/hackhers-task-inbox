@@ -1,9 +1,12 @@
 import fs from "node:fs/promises";
 import path from "node:path";
 import { z } from "zod";
+import { prisma } from "@/lib/db/prisma";
 import { SYSTEM_PROMPT } from "@/lib/ai/prompt";
 import type { ClassifyThreadInput } from "@/lib/ai/types";
 import { classificationResultSchema } from "@/lib/schemas/classification";
+import { computeCandidateThreadIds } from "@/lib/sync/materialChange";
+import { buildThreadContext } from "./buildThreadContext";
 import { persistClassification } from "./persistClassification";
 
 const BATCH_DIR = path.join(process.cwd(), "data", "classification-batches");
@@ -129,4 +132,40 @@ export async function applyClassificationBatch(filePath: string): Promise<ApplyC
   }
 
   return { scanRunId: batch.scanRunId, tasksCreated, tasksUpdated, skipped, invalid, invalidThreadIds };
+}
+
+/**
+ * Regenerates a manual-mode batch file from the DB's current state — every
+ * already-synced thread that's never been classified (or has new messages
+ * since it last was), regardless of which scan run touched it. Useful to
+ * re-export candidates on demand (e.g. if a batch file was lost) without
+ * needing new mail to arrive first, since ordinary scans only export
+ * threads touched by that specific run.
+ */
+export async function exportPendingClassificationBatch(): Promise<string | undefined> {
+  const accounts = await prisma.gmailAccount.findMany({ where: { isActive: true } });
+  const threads = await prisma.emailThread.findMany({
+    where: { gmailAccountId: { in: accounts.map((a) => a.id) } },
+    select: { id: true, messageCount: true, lastClassifiedMessageCount: true },
+  });
+  const candidateIds = computeCandidateThreadIds(
+    threads.map((t) => ({ emailThreadId: t.id, messageCount: t.messageCount, lastClassifiedMessageCount: t.lastClassifiedMessageCount })),
+  );
+  if (candidateIds.length === 0) return undefined;
+
+  const scanRun = await prisma.scanRun.create({
+    data: {
+      trigger: "CLI",
+      mode: "LIVE",
+      status: "SUCCEEDED",
+      finishedAt: new Date(),
+      gmailAccountsScanned: accounts.map((a) => a.emailAddress),
+      threadsClassified: 0,
+    },
+  });
+
+  const contexts = await Promise.all(
+    candidateIds.map(async (emailThreadId) => ({ emailThreadId, context: await buildThreadContext(emailThreadId) })),
+  );
+  return writeClassificationBatch(scanRun.id, contexts);
 }

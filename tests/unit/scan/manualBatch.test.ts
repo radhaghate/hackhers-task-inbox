@@ -19,6 +19,16 @@ function useManualLLMProvider() {
   __resetEnvCacheForTests();
 }
 
+// Tracks exactly the batch files each test creates, so cleanup can remove
+// only those — never the whole data/classification-batches/ directory,
+// which is the same relative path the real app writes real (non-test)
+// pending classification batches to.
+const createdBatchFilePaths: string[] = [];
+function trackBatchFile(filePath: string | undefined) {
+  if (filePath) createdBatchFilePaths.push(filePath);
+  return filePath;
+}
+
 afterEach(async () => {
   process.env.LLM_PROVIDER = "mock";
   __resetEnvCacheForTests();
@@ -26,7 +36,7 @@ afterEach(async () => {
   await prisma.gmailAccount.deleteMany({ where: { emailAddress: { in: [HACKHERS_EMAIL, WICS_EMAIL] } } });
   await prisma.scanRun.deleteMany({});
   await prisma.auditEvent.deleteMany({});
-  await fs.rm("data/classification-batches", { recursive: true, force: true });
+  await Promise.all(createdBatchFilePaths.splice(0).map((p) => fs.rm(p, { force: true })));
 });
 
 describe("runScan — manual LLM provider mode", () => {
@@ -35,6 +45,7 @@ describe("runScan — manual LLM provider mode", () => {
     await seedAccounts();
 
     const { status, manualBatchFilePath } = await runScan({ mode: "LIVE", trigger: "CLI" });
+    trackBatchFile(manualBatchFilePath);
     expect(status).toBe("SUCCEEDED");
     expect(manualBatchFilePath).toBeTruthy();
 
@@ -55,6 +66,7 @@ describe("runScan — manual LLM provider mode", () => {
     await seedAccounts();
 
     const { manualBatchFilePath } = await runScan({ mode: "LIVE", trigger: "CLI" });
+    trackBatchFile(manualBatchFilePath);
     const batch = await readClassificationBatch(manualBatchFilePath!);
 
     const actionableEntry = batch.threads.find((t) => /workshop schedule/i.test(t.subject));
@@ -94,6 +106,7 @@ describe("runScan — manual LLM provider mode", () => {
     await seedAccounts();
 
     const { manualBatchFilePath } = await runScan({ mode: "LIVE", trigger: "CLI" });
+    trackBatchFile(manualBatchFilePath);
     const batch = await readClassificationBatch(manualBatchFilePath!);
     batch.threads[0].result = { actionable: "not-a-boolean" };
     await fs.writeFile(manualBatchFilePath!, JSON.stringify(batch, null, 2), "utf-8");
