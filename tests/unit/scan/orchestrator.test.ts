@@ -50,10 +50,15 @@ describe("runScan — live run against mock Gmail + mock LLM", () => {
 
     expect(taskSubjects).toContain("HackHERS 2026 workshop schedule");
     expect(taskSubjects).toContain("Venue AV setup form");
-    expect(taskSubjects).toContain("Guest speaker for spring kickoff?");
-    expect(taskSubjects).toContain("W9 for sponsorship payment");
+    expect(taskSubjects).toContain("Need HackHERS volunteers for check-in desk");
     expect(taskSubjects).not.toContain("ACM-W Monthly Digest — August");
     expect(taskSubjects).not.toContain("Your Canva for Nonprofits receipt");
+    // The WiCS account is topic-filtered to HackHERS-related mail only (see
+    // src/lib/sync/topicFilter.ts) — these are genuinely actionable WiCS
+    // business, but not HackHERS-related, so they're filtered out before
+    // ever reaching classification, not because they're non-actionable.
+    expect(taskSubjects).not.toContain("Guest speaker for spring kickoff?");
+    expect(taskSubjects).not.toContain("W9 for sponsorship payment");
 
     const scanRun = await prisma.scanRun.findFirstOrThrow({ orderBy: { createdAt: "desc" } });
     expect(scanRun.modelCallsCount).toBeGreaterThan(0);

@@ -48,6 +48,24 @@
         }
       ],
       "labelOnlyThreadIds": []
+    },
+    {
+      "historyId": "200020",
+      "messages": [
+        {
+          "gmailMessageId": "wics-msg-004",
+          "gmailThreadId": "wics-thread-hackhers-volunteers",
+          "threadSubject": "Need HackHERS volunteers for check-in desk",
+          "fromAddress": "logistics@hackhers.example",
+          "toAddresses": ["rutgerswics@gmail.com"],
+          "sentAt": "2026-08-22T10:00:00.000Z",
+          "snippet": "Could WiCS members help staff the HackHERS check-in desk?",
+          "bodyText": "Hi WiCS,\n\nHackHERS is looking for a few volunteers to help staff the check-in desk on event day. Could you help us find 3-4 people by Friday?\n\nThanks,\nHackHERS Logistics",
+          "historyId": "200020",
+          "isFromOrgAccount": false
+        }
+      ],
+      "labelOnlyThreadIds": []
     }
   ]
 }

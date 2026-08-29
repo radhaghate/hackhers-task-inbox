@@ -3,6 +3,7 @@ import { sanitizeEmailBody } from "@/lib/sanitize/emailSanitizer";
 import { GmailHistoryExpiredError, type GmailAccountRef, type GmailProvider } from "@/lib/gmail/types";
 import { dedupeAgainstDb } from "./dedupe";
 import { setCursor } from "./cursor";
+import { passesAccountTopicFilter } from "./topicFilter";
 
 export type SyncAccountResult = {
   gmailAccountId: string;
@@ -43,7 +44,11 @@ export async function syncGmailAccount(gmailAccountId: string, provider: GmailPr
     }
   }
 
-  const unseen = await dedupeAgainstDb(gmailAccountId, fetchResult.messages);
+  // Applied before dedup/persistence so filtered-out mail never becomes an
+  // EmailThread/EmailMessage row and never reaches classification.
+  const onTopic = fetchResult.messages.filter((m) => passesAccountTopicFilter(account.emailAddress, m));
+
+  const unseen = await dedupeAgainstDb(gmailAccountId, onTopic);
   unseen.sort((a, b) => new Date(a.sentAt).getTime() - new Date(b.sentAt).getTime());
 
   const threadsTouched = new Set<string>();

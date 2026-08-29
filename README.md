@@ -185,6 +185,10 @@ runs cheap.
   `SuggestedReply`, `Reminder`, `ScanRun`, `AuditEvent`, `TeamMember`. One thread can produce many tasks; tasks
   are never recreated once `COMPLETED` or `DISMISSED` (see `src/lib/scan/persistClassification.ts`).
 - **Dashboard sections** are computed, not stored — only `Task.status` persists (`src/lib/dashboard/sections.ts`).
+- **WiCS topic filter**: the WiCS inbox handles general club business as well as HackHERS matters, so its sync is
+  restricted to mail that mentions "HackHERS" (case-insensitive, subject/snippet/body) — see
+  `src/lib/sync/topicFilter.ts`. This runs before persistence, so non-matching WiCS mail never becomes an
+  `EmailThread`/`EmailMessage` row and never reaches classification. The HackHERS account itself is unfiltered.
 - **Token/cost controls**: per-account `lastHistoryId` cursor for incremental Gmail sync
   (`src/lib/sync/incrementalSync.ts`), dedup by Gmail message/thread ID, material-change detection so unchanged
   threads never get reclassified (`src/lib/sync/materialChange.ts`), signature/quote/tracking-link stripping and

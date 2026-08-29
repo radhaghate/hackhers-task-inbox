@@ -83,4 +83,17 @@ describe("syncGmailAccount", () => {
     const messageCount = await prisma.emailMessage.count({ where: { gmailAccountId: account.id } });
     expect(messageCount).toBe(4);
   });
+
+  it("only persists WiCS mail that's HackHERS-related, per the account topic filter", async () => {
+    const account = await createTestAccount("rutgerswics@gmail.com");
+    const result = await syncGmailAccount(account.id, provider);
+
+    // Fixture has 4 messages total (speaker outreach, receipt, W9 follow-up,
+    // HackHERS volunteer request) — only the last one mentions HackHERS.
+    expect(result.messagesSeen).toBe(4);
+    expect(result.newMessages).toBe(1);
+
+    const threads = await prisma.emailThread.findMany({ where: { gmailAccountId: account.id } });
+    expect(threads.map((t) => t.subject)).toEqual(["Need HackHERS volunteers for check-in desk"]);
+  });
 });
