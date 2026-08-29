@@ -43,6 +43,27 @@ async function main() {
   ]);
 
   // --- Gmail accounts (mock mode: no real tokens stored) ------------------
+  // This seed script uses the two real club addresses as fictional-data
+  // placeholders. If either has already been connected for real (GMAIL_PROVIDER=google,
+  // via /settings), refuse to touch it — the re-seed step below deletes and
+  // recreates these GmailAccount rows, which would destroy a real encrypted
+  // OAuth refresh token and disconnect the account.
+  const existingReal = await prisma.gmailAccount.findMany({
+    where: {
+      emailAddress: { in: ["rutgers.hackhers@gmail.com", "rutgerswics@gmail.com"] },
+      encryptedRefreshToken: { not: null },
+    },
+    select: { emailAddress: true },
+  });
+  if (existingReal.length > 0) {
+    throw new Error(
+      `Refusing to seed: ${existingReal.map((a) => a.emailAddress).join(", ")} already has a real Gmail OAuth ` +
+        "connection. Re-seeding would delete and recreate that GmailAccount row, destroying the stored refresh " +
+        "token and disconnecting it. If you really want fictional demo data alongside a real connection, seed " +
+        "into a separate database instead of this one.",
+    );
+  }
+
   const [hackhers, wics] = await Promise.all([
     prisma.gmailAccount.upsert({
       where: { emailAddress: "rutgers.hackhers@gmail.com" },
